@@ -1,0 +1,28 @@
+<ion-view view-title="View Entry">
+
+    <ion-nav-bar class="bar-royal nav-title-slide-ios7">
+
+        <ion-nav-back-button class="button-clear">
+            Entry
+        </ion-nav-back-button>
+
+
+    </ion-nav-bar>
+
+
+    <ion-content>
+
+        <button class="button" ng-click="uploadEntry()">
+            Upload Entry
+        </button>
+
+        <ion-list>
+            <ion-item ng-repeat="answer in answers">
+                <div class="text-left">
+                    {{answer.question}} - {{answer.answer}}
+                </div>
+            </ion-item>
+        </ion-list>
+
+    </ion-content>
+</ion-view>

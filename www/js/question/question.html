@@ -1,0 +1,26 @@
+<ion-view view-title="{{ formName }}">
+
+    <ion-nav-bar class="bar-royal nav-title-slide-ios7">
+
+        <div>
+            <ion-nav-back-button ng-click="previous()">
+                {{ prevText }}
+            </ion-nav-back-button>
+        </div>
+
+        <ion-nav-buttons side="right">
+            <button class="button button-clear" ng-click="next()">
+                {{ menuText }}
+                <i class="icon ion-ios7-arrow-next"></i>
+            </button>
+        </ion-nav-buttons>
+
+    </ion-nav-bar>
+
+    <ion-content>
+
+        <child></child>
+
+    </ion-content>
+
+</ion-view>

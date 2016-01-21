@@ -1,0 +1,29 @@
+<ion-view cache-view="false" view-title="Projects">
+
+    <ion-nav-bar class="bar-royal nav-title-slide-ios7">
+
+        <ion-nav-buttons side="left">
+            <!-- Toggle left side menu -->
+            <button menu-toggle="left" class="button button-icon icon ion-navicon"></button>
+        </ion-nav-buttons>
+
+        <ion-nav-buttons side="right">
+            <button class="button button-clear" ng-click="addProject()">
+                + Add Project
+                <i class="icon ion-ios7-arrow-next"></i>
+            </button>
+        </ion-nav-buttons>
+
+    </ion-nav-bar>
+
+
+    <ion-content>
+        <ion-list>
+            <ion-item ng-repeat="project in projects" href="#/app/projects/{{project.slug}}">
+                <div class="text-left">
+                    {{project.title}}
+                </div>
+            </ion-item>
+        </ion-list>
+    </ion-content>
+</ion-view>

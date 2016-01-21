@@ -1,0 +1,36 @@
+<ion-view view-title="Add Project">
+
+    <ion-nav-bar class="bar-royal nav-title-slide-ios7">
+
+        <ion-nav-back-button class="button-clear">
+            Projects
+        </ion-nav-back-button>
+
+
+    </ion-nav-bar>
+
+    <ion-content>
+
+        <div class="item item-input-inset">
+            <label class="item-input-wrapper">
+                <i class="icon ion-search placeholder-icon"></i>
+                <input type="search" ng-model="searchTerm.search" placeholder="Search for a project">
+            </label>
+            <!--<button ng-click="searchTerm = ''" class="button ion-android-close input-button button-small" ng-show="searchTerm.length">-->
+            <!--</button>-->
+            <button class="button button-royal" ng-click="search()">
+                Search
+            </button>
+        </div>
+
+
+        <ion-list>
+            <ion-item ng-repeat="project in projects" ng-click="addProject(project.slug, project.name)">
+                <div class="text-left">
+                    {{project.name}}
+                </div>
+            </ion-item>
+        </ion-list>
+
+    </ion-content>
+</ion-view>
