@@ -1,8 +1,8 @@
-import {Injectable} from 'angular2/core';
-
-@Injectable()
-export class StatusCodes {
-    constructor() {
+/**
+ * Status Codes
+ */
+angular.module('status-codes', ['ionic'])
+    .service('StatusCodes', function () {
 
         this.codes = {
             'ec5_11': 'Project does not exist.',
@@ -44,21 +44,35 @@ export class StatusCodes {
             'ec5_47': 'File format incorrect.',
             'ec5_60': 'No File Uploaded.',
             'ec5_61': 'invalid JSON structure.',
-            'ec5_62': 'invalid input type.'
+            'ec5_62': 'invalid input type.',
+            'ec5_63': 'invalid json project details.',
+            'ec5_64': 'invalid json form details.',
+            'ec5_65': 'invalid json form input.',
+            'ec5_66': 'Empty project or no project form',
+            'ec5_67': 'no forms or too many',
+            'ec5_68': 'no inputs or too many',
+            'ec5_69': 'No File Uploaded.',
+            'ec5_70': 'Please log in.',
+            'ec5_71': 'This project is private. You need permission to view it from the project manager.',
+            'ec5_72': 'A reset link has been emailed to you.',
+            'ec5_73': 'Your password has been successfully changed.',
+            'ec5_74': 'Password reset token invalid or email incorrect, please try again.',
+            'ec5_75': 'This project cannot accept entry uploads.',
+            'ec5_76': 'There was a problem with one of the answers.',
+            'ec5_77': 'This project is private. Please log in.',
+            'ec5_78': 'Are you sure you want to quit?',
+            'ec5_79': 'Entry added.'
 
+        };
 
-        }
+        /**
+         * Get the message for the supplied code
+         *
+         * @param code
+         * @returns {*}
+         */
+        this.getMessage = function (code) {
+            return this.codes[code];
+        };
 
-    }
-
-    /**
-     * Get the message for the supplied code
-     *
-     * @param code
-     * @returns {*}
-     */
-    getMessage(code) {
-        return this.codes[code];
-    }
-
-}
+    });

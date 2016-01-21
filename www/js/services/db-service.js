@@ -226,8 +226,9 @@ angular.module('db-service', ['ionic'])
 
             return new Promise(function (fulfill, reject) {
                 $cordovaSQLite.execute(db, query, [entryUuid, inputRef, JSON.stringify(answer)]).then(function (res) {
-                    console.log("INSERT ID -> " + res);
+
                     fulfill(res);
+
                 }, function (err) {
                     console.error(err);
                     reject(err);
@@ -249,15 +250,7 @@ angular.module('db-service', ['ionic'])
 
                 $cordovaSQLite.execute(db, query, [entryUuid]).then(function (res) {
 
-                    //if (res.rows.length > 0) {
-                    //
-                    //    for (var i = 0; i < res.rows.length; i++) {
-                    //        answers.push(JSON.parse(res.rows.item(i).answer));
-                    //    }
-                    //
-                    //}
                     fulfill(res);
-
 
                 }, function (err) {
                     console.error('error has happened: ' + err);

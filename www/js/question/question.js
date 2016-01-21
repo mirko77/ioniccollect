@@ -1,11 +1,12 @@
-angular.module('question', ['ionic', 'ngCordova'])
+angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-validate'])
 
-    .controller('QuestionCtrl', function($ionicPlatform, $scope, $stateParams, $state, $cordovaSQLite, $ionicHistory, WebService, ProjectModel, addEntry, DbService) {
+    .controller('QuestionCtrl', function($ionicPlatform, $scope, $stateParams, $state, $cordovaSQLite, $ionicHistory, WebService, ProjectModel, addEntry, DbService, StatusCodes, AnswerValidate) {
 
         $scope.project = ProjectModel;
         $scope.addEntry = addEntry;
         $scope.formName = addEntry.formName;
         $scope.slug = $scope.project.getSlug();
+        $scope.validator = AnswerValidate;
 
         // retrieve input refs array
         var inputs = $scope.project.getFormInputs($scope.addEntry.currentFormRef);
@@ -60,7 +61,9 @@ angular.module('question', ['ionic', 'ngCordova'])
         // retrieve the type of input
         $scope.type = $scope.inputDetails.type;
 
-        // Set default answer object
+        $scope.jumps = $scope.inputDetails.jumps;
+
+        // Set the default answer object
         $scope.answer = {
             answer: '',
             was_jumped: false,
@@ -73,16 +76,19 @@ angular.module('question', ['ionic', 'ngCordova'])
          */
         $scope.next = function() {
 
-            // access child answer here
-            console.log($scope.answer);
-
             // reset validator errors
-            //this.validator.reset();
+            $scope.validator.reset();
 
             var wasJumped = false;
 
+            // Check if we are jumping to another question
+            if ($scope.jumps.length > 0) {
+                // process the jumps to set the correct next input ref value
+                $scope.processJumps();
+            }
+
             // save answer
-            var passed = $scope.saveAnswer($scope.currentInputRef, $scope.answer);
+            var passed = $scope.saveAnswer(wasJumped);
 
             // if answer passed validation and was successfully stored
             if (passed) {
@@ -109,7 +115,7 @@ angular.module('question', ['ionic', 'ngCordova'])
                         var entry = $scope.addEntry.makeJsonEntry($scope.addEntry.answers);
                         DbService.saveEntry(slug, $scope.addEntry.entryUuid, entry).then(function() {
                             console.log(entry);
-                            alert('Entry added!');
+                            alert(StatusCodes.getMessage('ec5_79'));
 
                             // once the entry has inserted, take to entry screen, disabling back view
                             $ionicHistory.nextViewOptions({
@@ -134,7 +140,7 @@ angular.module('question', ['ionic', 'ngCordova'])
 
             // if we are at the start of the entry, alert user
             if ($scope.currentInputIndex === 0) {
-                back = confirm('Are you sure you want to quit this entry?');
+                back = confirm(StatusCodes.getMessage('ec5_78'));
             }
 
             if (back) {
@@ -151,40 +157,42 @@ angular.module('question', ['ionic', 'ngCordova'])
          */
         $scope.saveAnswer = function(wasJumped) {
 
-            var answer = '';
+            var answer = $scope.answer.answer;
 
             // check whether answer is valid
-            //if (this.validator.hasErrors()) {
-            //    var errors = this.validator.getErrors();
-            //    for (var error in errors) {
-            //        if (errors.hasOwnProperty(error)) {
-            //            alert('Error: ' + this.statusCodes.getMessage(errors[error]));
-            //        }
-            //    }
-            //    return false;
-            //}
-
-            // Do some cleansing on the answer, relative to its question type
+            if ($scope.validator.hasErrors()) {
+                var errors = $scope.validator.getErrors();
+                for (var error in errors) {
+                    if (errors.hasOwnProperty(error)) {
+                        alert('Error: ' + StatusCodes.getMessage(errors[error]));
+                    }
+                }
+                return false;
+            }
+            // Do some cleansing on the answer for insertion into the db
             switch ($scope.type) {
 
                 case 'checkbox':
                     // join checkbox answers into csv
                     var tempAnswer = [];
-                    for (var i in $scope.answer.answer) {
-                        if ($scope.answer.answer[i] == true) {
+                    for (var i in answer) {
+                        if (answer[i] == true) {
                             tempAnswer.push(i);
                         }
                     }
-                    $scope.answer.answer = tempAnswer.join(',');
+                    answer = tempAnswer.join(',');
 
                     break;
 
-
-
             }
-            console.log(answer);
+
             // store the answer
-            DbService.saveAnswer($scope.addEntry.entryUuid, $scope.currentInputRef, $scope.answer);
+            DbService.saveAnswer($scope.addEntry.entryUuid, $scope.currentInputRef,
+                {   answer: answer,
+                    input_ref: $scope.answer.input_ref,
+                    was_jumped: wasJumped
+                });
+
             // success
             return true;
 
@@ -195,42 +203,99 @@ angular.module('question', ['ionic', 'ngCordova'])
          */
         $scope.getAnswer = function() {
 
-            // Check the database for any stored answer for this question
+            //// Check the database for any stored answer for this question
             DbService.getAnswer($scope.addEntry.entryUuid, $scope.currentInputRef).then(function(res) {
 
-                if (res) {
+                // if we have a stored answer in the db
+                if(res.rows.length > 0) {
 
-                    var answer = JSON.parse(res.rows.item(0).answer);
-                    // Do some cleansing on the answer, relative to its question type
-                    switch ($scope.type) {
+                    var dbAnswer = JSON.parse(res.rows.item(0).answer);
+                    // parse the answer from the db into correct format for reading
+                    $scope.answer = $scope.parseAnswer(dbAnswer);
 
-                        case 'checkbox':
-                            // split checkbox answers into array
-                            var answerArray = answer.answer.split(',');
-                            answer.answer = {};
-                            for (var i = 0; i < answerArray.length; i++) {
-                                answer.answer[answerArray[i]] = true;
-                            }
-
-                            break;
-
-                        //case 'group':
-                        //
-                        //    break;
-
-                    }
-
-                    $scope.answer = answer;
-                    console.log($scope.answer);
                 }
-
 
             });
 
+        };
 
+        /**
+         * Parse an answer into a format readable by the View-Model
+         * @param answer
+         * @returns {*}
+         */
+        $scope.parseAnswer = function(answer) {
 
+            // Do some cleansing on the answer, relative to its question type
+            switch ($scope.type) {
+
+                case 'checkbox':
+                    // split checkbox answers into array
+                    var answerArray = answer.answer.split(',');
+                    answer.answer = {};
+                    for (var i = 0; i < answerArray.length; i++) {
+                        answer.answer[answerArray[i]] = true;
+                    }
+                    console.log(answer);
+                    break;
+
+                //case 'group':
+                //
+                //    break;
+
+            }
+
+            return answer;
 
         };
+
+        /**
+         * Process jumps for this question
+         * Setting the next input ref based on the conditions
+         */
+        $scope.processJumps = function() {
+
+            for (var i = 0; i < $scope.jumps.length; i++) {
+
+                var currentJump = $scope.jumps[i];
+
+                switch (currentJump.when) {
+
+                    case 'IS':
+
+                        $scope.nextInputRef = currentJump.to;
+                        break;
+
+                    case 'IS_NOT':
+
+                        $scope.nextInputRef = currentJump.to;
+                        break;
+
+                    case 'NO_ANSWER_GIVEN':
+
+                        break;
+
+                    case 'ALL':
+
+                        break;
+                }
+
+            }
+
+        //"jumps": [
+        //    {
+        //        "to": "ec5_test_5",
+        //        "when": "IS",
+        //        "answer_id": 1
+        //    },
+        //    {
+        //        "to": "END",
+        //        "when": "IS",
+        //        "answer_id": 2
+        //    }
+        //],
+
+    };
 
         /**
          * Take a picture
@@ -260,9 +325,10 @@ angular.module('question', ['ionic', 'ngCordova'])
         };
 
 
-        // Check if we already have an answer stored for this question
         $ionicPlatform.ready(function () {
+            // Check if we already have an answer stored for this question
             $scope.getAnswer();
+
         });
 
     })
