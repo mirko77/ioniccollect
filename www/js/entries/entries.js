@@ -2,7 +2,7 @@
 
 angular.module('entries', [])
 
-    .controller('EntriesCtrl', function($ionicPlatform, $scope, $stateParams, $state, ProjectModel, DbService, addEntry) {
+    .controller('EntriesCtrl', function($ionicPlatform, $scope, $stateParams, $state, ProjectModel, DbService, EntryService) {
 
         $scope.show = function() {
             cordova.plugin.pDialog.init({
@@ -19,22 +19,46 @@ angular.module('entries', [])
         };
 
         $scope.entries = [];
-
-        $scope.project = ProjectModel;
-        $scope.slug = $scope.project.getSlug();
         $scope.DbService = DbService;
+        $scope.project = ProjectModel;
+        $scope.projectRef = $stateParams.project_ref;
+        $scope.projectName = '';
 
-        addEntry.addProject($scope.project);
+        /**
+         * Retrieve the project and entries
+         */
+        $scope.getProjectAndEntries = function() {
 
-        $scope.projectName = $scope.project.getProjectName();
+            DbService.getProject($scope.projectRef).then(function(res) {
 
+                console.log(res);
+
+                // check if we have one
+                if (res.rows.item(0)) {
+
+                    $scope.json_structure = res.rows.item(0).json_structure
+                    $scope.json_extra = res.rows.item(0).json_extra;
+                    $scope.project.initialise($scope.json_structure, $scope.json_extra);
+                    EntryService.addProject($scope.project);
+                    $scope.projectName = $scope.project.getProjectName();
+
+                    console.log($scope.project);
+                    // now retrieve and show the entries
+                    $scope.showEntries();
+                } else {
+                    $scope.hide();
+                }
+
+
+            });
+        };
 
         /**
          * Show the entries for this project's main form
          */
         $scope.showEntries = function() {
 
-            $scope.DbService.getEntriesForProject($scope.slug).then(function(res) {
+            $scope.DbService.getEntriesForProject($scope.projectRef).then(function(res) {
 
                 for (var i = 0; i < res.rows.length; i++) {
                     $scope.entries.push({title: res.rows.item(i).uuid});
@@ -53,7 +77,7 @@ angular.module('entries', [])
         $scope.viewEntry = function(entry) {
 
             console.log(entry);
-            $state.go('app.view-entry', {slug: $scope.slug, entryUuid: entry.title});
+            $state.go('app.view-entry', {project_ref: $scope.projectRef, entryUuid: entry.title});
 
         };
 
@@ -64,66 +88,24 @@ angular.module('entries', [])
          */
         $scope.addEntry = function() {
 
-            addEntry.setUp();
-            $state.go('app.question', {slug: $scope.slug, formRef: addEntry.currentFormRef, inputRef: '', inputIndex: 0});
+            EntryService.setUp();
+            $state.go('app.question', {project_ref: $scope.projectRef, formRef: EntryService.currentFormRef, inputRef: '', inputIndex: 0});
 
         };
 
+        /**
+         * Go to Projects page
+         */
+        $scope.projectsPage = function () {
+            location.href = '#/app/projects';
+        };
 
         $ionicPlatform.ready(function () {
-            // show the entries for this project
+
             $scope.show();
-            $scope.showEntries();
+            // retrieve the project then the entries
+            $scope.getProjectAndEntries();
 
         });
 
-
-
     });
-
-
-
-//
-//
-//export class EntriesPage {
-//
-//    /**
-//     *
-//     * @param app
-//     * @param nav
-//     * @param navParams
-//     * @param dataService
-//     * @param project
-//     * @param dataEntries
-//     * @param dataProjects
-//     */
-//    constructor(app:IonicApp, nav:NavController, navParams:NavParams, dataService: DataService, project:Project, dataEntries: DataEntries, dataProjects: DataProjects) {
-//
-//        this.nav = nav;
-//        this.project = project;
-//        this.dataService = dataService;
-//        this.dataEntries = dataEntries;
-//        this.dataProjects = dataProjects;
-//
-//
-//        // If we navigated to this page, we will have an item available as a nav param
-//        this.selectedItem = navParams.get('item');
-//        this.form = navParams.get('form');
-//        this.formName = this.form.details.name;
-//        this.projectName = this.project.extra_structure.project.details.name;
-//        this.items = [];
-//
-//        this.showEntries(this.selectedItem.slug);
-//
-//    }
-//
-
-//
-
-//
-//    viewEntry(event, item) {
-//        this.nav.push(ViewEntry, {item: item});
-//    }
-//
-//
-//}

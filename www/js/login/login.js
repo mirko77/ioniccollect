@@ -1,6 +1,6 @@
 angular.module('login', [])
 
-    .controller('LoginCtrl', function ($ionicPlatform, $scope, $ionicModal, $cordovaNetwork, $ionicPopup, $timeout, WebService, DbService) {
+    .controller('LoginCtrl', function ($ionicPlatform, $scope, $ionicModal, $cordovaNetwork, $timeout, WebService, DbService) {
 
         // With the new view caching in Ionic, Controllers are only called
         // when they are recreated or on app start, instead of every page change.
@@ -48,13 +48,15 @@ angular.module('login', [])
 
         // Open the login modal
         $scope.login = function () {
-            // check if we have a connection
-            if($cordovaNetwork.isOffline()) {
-                    alert('Please connect to the internet to login.');
 
-            } else {
+            // check if we have a connection
+            // TODO this is only checking for wifi connection, not mobile data connection
+            //if($cordovaNetwork.isOffline()) {
+            //        alert('Please connect to the internet to login.');
+            //
+            //} else {
                 $scope.modal.show();
-            }
+            //}
 
         };
 

@@ -13,7 +13,6 @@ angular.module('answer-validate', ['ionic'])
          */
         this.validate = function (input_details, answer) {
 
-            console.log(answer);
             this.inputRef = input_details.ref;
 
             // if we have a required field, check not empty
@@ -21,8 +20,17 @@ angular.module('answer-validate', ['ionic'])
                 return false;
             }
 
-            // do checks on this answer and the input type
-            this.doAnswerChecks(input_details.type, answer, input_details.possible_answers, input_details.min, input_details.max, input_details.regex);
+
+            // type specific checks
+            switch(input_details.type) {
+
+                case 'group':
+
+                    break;
+                default:
+                    // do checks on this answer and the input type
+                    this.doAnswerChecks(input_details.type, answer, input_details.possible_answers, input_details.min, input_details.max, input_details.regex);
+            }
 
         };
 
@@ -139,7 +147,7 @@ angular.module('answer-validate', ['ionic'])
          */
         this.checkRegex = function (regex, answer) {
             // Check regex is met, if not empty
-            if (answer !== '' && regex !== '') {
+            if (answer !== '' && answer != null && regex !== '') {
                 var re = new RegExp(regex);
                 if (re.test(answer)) {
                     this.errors[this.inputRef] = ['ec5_23'];
@@ -245,27 +253,28 @@ angular.module('answer-validate', ['ionic'])
          */
         this.checkInteger = function (answer, min, max) {
 
-            //if (answer !== '') {
+            if (answer !== '' && answer != null) {
+                console.log('the answer is: ' + answer);
 
-            // Check the answer is an integer
-            //if (!ctype_digit(answer)) {
-            //    this.errors[this.inputRef] = ['ec5_27'];
-            //} else {
-            //    if (!empty(min)) {
-            //        // Check answer is not less than the min
-            //        if (answer < min) {
-            //            this.errors[this.inputRef] = ['ec5_28'];
-            //        }
-            //    }
-            //
-            //    if (!empty(max)) {
-            //        // Check answer is not greater than the max
-            //        if (answer > max) {
-            //            this.errors[this.inputRef] = ['ec5_28'];
-            //        }
-            //    }
-            //}
-            //}
+                // Check the answer is an integer
+                if (answer !== parseInt(answer, 10)) {
+                    this.errors[this.inputRef] = ['ec5_27'];
+                } else {
+                    if (min != '') {
+                        // Check answer is not less than the min
+                        if (answer < min) {
+                            this.errors[this.inputRef] = ['ec5_28'];
+                        }
+                    }
+
+                    if (max != '') {
+                        // Check answer is not greater than the max
+                        if (answer > max) {
+                            this.errors[this.inputRef] = ['ec5_28'];
+                        }
+                    }
+                }
+            }
         };
 
         /**
@@ -277,28 +286,27 @@ angular.module('answer-validate', ['ionic'])
          */
         this.checkDecimal = function (answer, min, max) {
 
-            //if (answer !== '') {
+            if (answer !== '' && answer != null) {
 
-            // Check the answer is an integer
-            //if (!is_float(answer)) {
-            //    this.errors[this.inputRef] = ['ec5_27'];
-            //
-            //} else {
-            //    if (!empty(min)) {
-            //        // Check answer is not less than the min
-            //        if (answer < min) {
-            //            this.errors[this.inputRef] = ['ec5_28'];
-            //        }
-            //    }
-            //
-            //    if (!empty(max)) {
-            //        // Check answer is not greater than the max
-            //        if (answer > max) {
-            //            this.errors[this.inputRef] = ['ec5_28'];
-            //        }
-            //    }
-            //}
-            //}
+                // Check the answer is a decimal or an integer
+                if (answer !== parseFloat(answer)) {
+                    this.errors[this.inputRef] = ['ec5_27'];
+                } else {
+                    if (min != '') {
+                        // Check answer is not less than the min
+                        if (answer < min) {
+                            this.errors[this.inputRef] = ['ec5_28'];
+                        }
+                    }
+
+                    if (max != '') {
+                        // Check answer is not greater than the max
+                        if (answer > max) {
+                            this.errors[this.inputRef] = ['ec5_28'];
+                        }
+                    }
+                }
+            }
         };
 
         /**

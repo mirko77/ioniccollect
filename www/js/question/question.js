@@ -1,15 +1,15 @@
 angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-validate'])
 
-    .controller('QuestionCtrl', function($ionicPlatform, $scope, $stateParams, $state, $cordovaSQLite, $ionicHistory, WebService, ProjectModel, addEntry, DbService, StatusCodes, AnswerValidate) {
+    .controller('QuestionCtrl', function ($ionicPlatform, $scope, $stateParams, $state, $cordovaSQLite, $ionicHistory, WebService, ProjectModel, EntryService, DbService, StatusCodes, AnswerValidate, AnswerService) {
 
         $scope.project = ProjectModel;
-        $scope.addEntry = addEntry;
-        $scope.formName = addEntry.formName;
-        $scope.slug = $scope.project.getSlug();
+        $scope.EntryService = EntryService;
+        $scope.formName = $scope.EntryService.formName;
+        $scope.projectRef = $scope.project.getProjectRef();
         $scope.validator = AnswerValidate;
 
         // retrieve input refs array
-        var inputs = $scope.project.getFormInputs($scope.addEntry.currentFormRef);
+        var inputs = $scope.project.getFormInputs($scope.EntryService.currentFormRef);
 
         // retrieve current input ref from previous view
         $scope.currentInputRef = $stateParams.inputRef;
@@ -25,7 +25,7 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
             $scope.currentInputRef = inputs[$scope.currentInputIndex];
         }
 
-        if ($scope.currentInputIndex < ($scope.addEntry.numInputsThisForm - 1)) {
+        if ($scope.currentInputIndex < ($scope.EntryService.numInputsThisForm - 1)) {
             $scope.menuText = 'Next';
         } else {
             $scope.menuText = 'Save Entry';
@@ -41,10 +41,10 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
         $scope.nextInputRef = inputs[$scope.currentInputIndex + 1];
 
         // retrieve the inputs extra details
-        var inputsExtra = $scope.project.getExtraInputs();
+        $scope.inputsExtra = $scope.project.getExtraInputs();
 
         // retrieve the input details for this question
-        $scope.inputDetails = inputsExtra[$scope.currentInputRef].data;
+        $scope.inputDetails = $scope.inputsExtra[$scope.currentInputRef].data;
 
         // retrieve any possible answers for this question
         $scope.possibleAnswers = $scope.inputDetails.possible_answers;
@@ -63,7 +63,6 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
 
         $scope.jumps = $scope.inputDetails.jumps;
 
-        // Set the default answer object
         $scope.answer = {
             answer: '',
             was_jumped: false,
@@ -74,10 +73,7 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
          * Validate and save answers
          * Go to next question/save entry (depending on where you are in the form)
          */
-        $scope.next = function() {
-
-            // reset validator errors
-            $scope.validator.reset();
+        $scope.next = function () {
 
             var wasJumped = false;
 
@@ -87,19 +83,19 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
                 $scope.processJumps();
             }
 
-            // save answer
-            var passed = $scope.saveAnswer(wasJumped);
+            // validate and save answer
+            var passed = AnswerService.saveAnswer($scope.answer.answer, $scope.inputDetails, wasJumped);
 
             // if answer passed validation and was successfully stored
             if (passed) {
 
                 // NEXT QUESTION
-                if ($scope.currentInputIndex < ($scope.addEntry.numInputsThisForm - 1)) {
+                if ($scope.currentInputIndex < ($scope.EntryService.numInputsThisForm - 1)) {
 
                     // go to next question
                     $state.go('app.question', {
-                        slug: $scope.slug,
-                        formRef: $scope.addEntry.currentFormRef,
+                        project_ref: $scope.projectRef,
+                        formRef: $scope.EntryService.currentFormRef,
                         inputRef: $scope.nextInputRef,
                         inputIndex: Number($scope.currentInputIndex + 1)
                     });
@@ -107,25 +103,14 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
 
                 } else {
                     // SAVE ENTRY
-
-                    DbService.getAnswers($scope.addEntry.entryUuid).then(function() {
-
-                        var slug = $scope.slug;
-
-                        var entry = $scope.addEntry.makeJsonEntry($scope.addEntry.answers);
-                        DbService.saveEntry(slug, $scope.addEntry.entryUuid, entry).then(function() {
-                            console.log(entry);
-                            alert(StatusCodes.getMessage('ec5_79'));
-
-                            // once the entry has inserted, take to entry screen, disabling back view
-                            $ionicHistory.nextViewOptions({
-                                disableBack: true
-                            });
-                            $state.go('app.entries', {slug: slug});
+                    $scope.EntryService.saveEntry($scope.projectRef).then(function() {
+                        // once the entry has inserted, navigate to entry screen, disabling back view
+                        $ionicHistory.nextViewOptions({
+                            disableBack: true
                         });
-
-
+                        $state.go('app.entries', {project_ref: $scope.projectRef});
                     });
+
                 }
             }
 
@@ -134,7 +119,7 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
         /**
          * Go to previous page
          */
-        $scope.previous = function() {
+        $scope.previous = function () {
 
             var back = true;
 
@@ -150,110 +135,10 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
         };
 
         /**
-         * Validate and save answers
-         *
-         * @param wasJumped
-         * @return boolean
-         */
-        $scope.saveAnswer = function(wasJumped) {
-
-            var answer = $scope.answer.answer;
-
-            // check whether answer is valid
-            if ($scope.validator.hasErrors()) {
-                var errors = $scope.validator.getErrors();
-                for (var error in errors) {
-                    if (errors.hasOwnProperty(error)) {
-                        alert('Error: ' + StatusCodes.getMessage(errors[error]));
-                    }
-                }
-                return false;
-            }
-            // Do some cleansing on the answer for insertion into the db
-            switch ($scope.type) {
-
-                case 'checkbox':
-                    // join checkbox answers into csv
-                    var tempAnswer = [];
-                    for (var i in answer) {
-                        if (answer[i] == true) {
-                            tempAnswer.push(i);
-                        }
-                    }
-                    answer = tempAnswer.join(',');
-
-                    break;
-
-            }
-
-            // store the answer
-            DbService.saveAnswer($scope.addEntry.entryUuid, $scope.currentInputRef,
-                {   answer: answer,
-                    input_ref: $scope.answer.input_ref,
-                    was_jumped: wasJumped
-                });
-
-            // success
-            return true;
-
-        };
-
-        /**
-         * Get answer for this question
-         */
-        $scope.getAnswer = function() {
-
-            //// Check the database for any stored answer for this question
-            DbService.getAnswer($scope.addEntry.entryUuid, $scope.currentInputRef).then(function(res) {
-
-                // if we have a stored answer in the db
-                if(res.rows.length > 0) {
-
-                    var dbAnswer = JSON.parse(res.rows.item(0).answer);
-                    // parse the answer from the db into correct format for reading
-                    $scope.answer = $scope.parseAnswer(dbAnswer);
-
-                }
-
-            });
-
-        };
-
-        /**
-         * Parse an answer into a format readable by the View-Model
-         * @param answer
-         * @returns {*}
-         */
-        $scope.parseAnswer = function(answer) {
-
-            // Do some cleansing on the answer, relative to its question type
-            switch ($scope.type) {
-
-                case 'checkbox':
-                    // split checkbox answers into array
-                    var answerArray = answer.answer.split(',');
-                    answer.answer = {};
-                    for (var i = 0; i < answerArray.length; i++) {
-                        answer.answer[answerArray[i]] = true;
-                    }
-                    console.log(answer);
-                    break;
-
-                //case 'group':
-                //
-                //    break;
-
-            }
-
-            return answer;
-
-        };
-
-        /**
          * Process jumps for this question
          * Setting the next input ref based on the conditions
          */
-        $scope.processJumps = function() {
+        $scope.processJumps = function () {
 
             for (var i = 0; i < $scope.jumps.length; i++) {
 
@@ -282,34 +167,35 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
 
             }
 
-        //"jumps": [
-        //    {
-        //        "to": "ec5_test_5",
-        //        "when": "IS",
-        //        "answer_id": 1
-        //    },
-        //    {
-        //        "to": "END",
-        //        "when": "IS",
-        //        "answer_id": 2
-        //    }
-        //],
+            //"jumps": [
+            //    {
+            //        "to": "ec5_test_5",
+            //        "when": "IS",
+            //        "answer_ref": 1
+            //    },
+            //    {
+            //        "to": "END",
+            //        "when": "IS",
+            //        "answer_ref": 2
+            //    }
+            //],
 
-    };
+        };
 
         /**
          * Take a picture
          */
-        $scope.takePicture = function() {
+        $scope.takePicture = function () {
 
-            var cameraOptions =   {   quality: 50,
+            var cameraOptions = {
+                quality: 50,
                 destinationType: Camera.DestinationType.DATA_URL,
                 sourceType: Camera.PictureSourceType.CAMERA,      // 0:Photo Library, 1=Camera, 2=Saved Album
                 encodingType: 0,     // 0=JPG 1=PNG
                 correctOrientation: true
             };
 
-            navigator.camera.getPicture(function(imageURI) {
+            navigator.camera.getPicture(function (imageURI) {
 
                 var base64Image = "data:image/jpeg;base64," + imageURI;
                 // imageURI is the URL of the image that we can use for
@@ -317,7 +203,7 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
                 $scope.answer.answer = base64Image;
 
 
-            }, function(err) {
+            }, function (err) {
 
                 // Uh-roh, something bad happened
 
@@ -327,7 +213,8 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
 
         $ionicPlatform.ready(function () {
             // Check if we already have an answer stored for this question
-            $scope.getAnswer();
+            $scope.answer = AnswerService.getAnswer($scope.inputDetails);
+            console.log($scope.answer);
 
         });
 
@@ -336,94 +223,123 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
     /**
      * Child directive - question and input depending on 'type'
      */
-    .directive("child", function($compile){
+    .directive("child", function ($compile) {
 
-    var getTemplate = function(scope, type, question, answer, possibleAnswers) {
+        /**
+         * Add child input templates to the main question pages
+         * For data binding, we add a string variable, bindingString, which
+         * will bind to the class 'answer' object, as 'answer.answer', or for groups
+         * 'answer.answer[i].answer', as each group input answer is contained within the group
+         * 'answer.answer' array
+         *
+         * @param scope
+         * @param type
+         * @param question
+         * @param bindingString - the string assigned to the ng-model for the answer
+         * @param possibleAnswers
+         * @returns {string}
+         */
+        var getTemplate = function (scope, type, question, bindingString, possibleAnswers) {
 
-        var template = '';
+            var template = '';
 
-        switch(type) {
+            switch (type) {
 
-            case 'decimal':
-                template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><input type="number" step="0.01" ng-model="' + answer + '"></label><br />';
-                break;
-            case 'integer':
-                template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><input type="number" ng-model="' + answer + '"></label><br />';
-                break;
-            case 'date':
-                template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><input type="date" ng-model="' + answer + '"></label><br />';
-                break;
-            case 'textarea':
-                template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><textarea rows="10" ng-model="' + answer + '"></textarea></label><br />';
-                break;
-            case 'radio':
-                template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span></label><div class="list">';
-                for (var i = 0; i < possibleAnswers.length; i++) {
-                    template += '<ion-radio ng-model="answer.answer" ng-value="' + possibleAnswers[i].answer_id + '">'+ possibleAnswers[i].answer +'</ion-radio>';
-                }
-                template += '</div><br />';
-                break;
-            case 'dropdown':
-                template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span></label><div class="list">';
-                for (var i = 0; i < possibleAnswers.length; i++) {
-                    template += '<ion-radio ng-model="answer.answer" ng-value="' + possibleAnswers[i].answer_id + '">'+ possibleAnswers[i].answer +'</ion-radio>';
-                }
-                template += '</div><br />';
-                break;
-            case 'checkbox':
-                template = '<label class="item item-input item-stacked-label item-stacked-label"><span class="input-label">' + question + '</span></label><div class="list">';
-                for (var i = 0; i < possibleAnswers.length; i++) {
-                    template += '<ion-checkbox ng-model="answer.answer[' + possibleAnswers[i].answer_id + ']" ng-value="' + possibleAnswers[i].answer_id + '" value="' + possibleAnswers[i].answer_id + '">'+ possibleAnswers[i].answer +'</ion-checkbox>'
-                }
-                template += '</div><br />';
-                break;
-            case 'photo':
-                template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><button class="button button-royal" ng-click="takePicture();">Take Picture</button></label>'+
-                            '<img src="{{ answer.answer }}"/><br />';
-                break;
-            case 'branch':
-                template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><button class="button button-royal">Add Branch</button></label><br />';
-                break;
-            case 'group':
+                case 'decimal':
+                    template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><input type="number" step="0.01" ng-model="' + bindingString + '"></label><br />';
+                    break;
+                case 'integer':
+                    template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><input type="number" ng-model="' + bindingString + '"></label><br />';
+                    break;
+                case 'date':
+                    template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><input type="date" ng-model="' + bindingString + '"></label><br />';
+                    break;
+                case 'time':
+                    template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><input type="time" ng-model="' + bindingString + '"></label><br />';
+                    break;
+                case 'textarea':
+                    template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><textarea rows="10" ng-model="' + bindingString + '"></textarea></label><br />';
+                    break;
+                case 'radio':
+                    template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span></label><div class="list">';
+                    for (var i = 0; i < possibleAnswers.length; i++) {
+                        template += '<ion-radio ng-model="' + bindingString + '" value="' + possibleAnswers[i].answer_ref + '">' + possibleAnswers[i].answer + '</ion-radio>';
+                    }
+                    template += '</div><br />';
+                    break;
+                case 'dropdown':
+                    template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span></label><div class="list">';
+                    for (var i = 0; i < possibleAnswers.length; i++) {
+                        template += '<ion-radio ng-model="' + bindingString + '" value="' + possibleAnswers[i].answer_ref + '">' + possibleAnswers[i].answer + '</ion-radio>';
+                    }
+                    template += '</div><br />';
+                    break;
+                case 'checkbox':
+                    template = '<label class="item item-input item-stacked-label item-stacked-label"><span class="input-label">' + question + '</span></label><div class="list">';
+                    for (var i = 0; i < possibleAnswers.length; i++) {
+                        template += '<ion-checkbox ng-model="' + bindingString + '[\'' + possibleAnswers[i].answer_ref + '\']" value="' + possibleAnswers[i].answer_ref + '">' + possibleAnswers[i].answer + '</ion-checkbox>'
+                    }
+                    template += '</div><br />';
+                    break;
+                case 'photo':
+                    template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><button class="button button-royal" ng-click="takePicture();">Take Picture</button></label>' +
+                        '<img src="{{ ' + bindingString + ' }}"/><br />';
+                    break;
+                case 'barcode':
+                    template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><button class="button button-royal" ng-click="takePicture();">Scan Barcode</button></label>' +
+                        '<img src="{{ ' + bindingString + ' }}"/><br />';
+                    break;
+                case 'video':
+                    template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><button class="button button-royal" ng-click="takePicture();">Record Video</button></label>' +
+                        '<img src="{{ ' + bindingString + ' }}"/><br />';
+                    break;
+                case 'audio':
+                    template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><button class="button button-royal" ng-click="takePicture();">Record Audio</button></label>' +
+                        '<img src="{{ ' + bindingString + ' }}"/><br />';
+                    break;
+                case 'branch':
+                    template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><button class="button button-royal">Add Branch</button></label><br />';
+                    break;
+                case 'group':
 
-                template = '';
+                    template = '';
 
-                var group = scope.project.getGroupInputs(scope.addEntry.currentFormRef, scope.inputDetails.ref);
+                    var group = scope.project.getGroupInputs(scope.EntryService.currentFormRef, scope.inputDetails.ref);
 
-                scope.answer.answer = {};
+                    scope.answer.answer = [];
 
-                for (var i = 0; i < group.length; i++) {
+                    for (var i = 0; i < group.length; i++) {
 
-                    var groupInputsExtra = scope.project.getExtraInputs();
-                    var groupInputDetails = groupInputsExtra[group[i].ref].data;
+                        var groupInputDetails = scope.inputsExtra[group[i].ref].data;
 
-                    scope.answer.answer[groupInputDetails.ref] = {
-                        input_ref: groupInputDetails.ref,
-                        was_jumped: false,
-                        answer: ''
-                    };
+                        // push group input answer into main group answer array
+                        scope.answer.answer.push({
+                            input_ref: groupInputDetails.ref,
+                            was_jumped: false,
+                            answer: ''
+                        });
 
-                    template += getTemplate(scope, groupInputDetails.type, groupInputDetails.question, 'answer.answer.' + groupInputDetails.ref + '.answer', groupInputDetails.possible_answers);
+                        template += getTemplate(scope, groupInputDetails.type, groupInputDetails.question, 'answer.answer[' + i + '].answer', groupInputDetails.possible_answers);
 
-                }
+                    }
 
-                break;
-            default:
-                template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><input type="text" ng-model="' + answer + '"></label><br />';
+                    break;
+                default:
+                    template = '<label class="item item-input item-stacked-label"><span class="input-label">' + question + '</span><input type="text" ng-model="' + bindingString + '"></label><br />';
+            }
+
+            return template;
+        };
+
+        return {
+            restrict: "E",
+            link: function (scope, element, attrs, QuestionCtrl) {
+
+                element.html(getTemplate(scope, scope.$parent.type, scope.$parent.question, 'answer.answer', scope.$parent.possibleAnswers));
+
+                $compile(element.contents())(scope);
+
+
+            }
         }
-
-        return template;
-    };
-
-    return {
-        restrict: "E",
-        link: function(scope, element, attrs, QuestionCtrl) {
-
-            element.html(getTemplate(scope, scope.$parent.type, scope.$parent.question, 'answer.answer', scope.$parent.possibleAnswers));
-
-            $compile(element.contents())(scope);
-
-
-        }
-    }
-});
+    });

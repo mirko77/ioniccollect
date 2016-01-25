@@ -13,7 +13,8 @@ angular.module('projects', [])
         $scope.DbService.getProjects().then(function(res) {
 
             for (var i = 0; i < res.rows.length; i++) {
-                $scope.projects.push({slug: res.rows.item(i).project_slug, title: res.rows.item(i).project_name});
+                console.log(res.rows.item(i).ref);
+                $scope.projects.push({project_ref: res.rows.item(i).ref, project_name: res.rows.item(i).name});
             }
 
             $scope.$apply()

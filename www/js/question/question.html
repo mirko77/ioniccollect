@@ -2,22 +2,28 @@
 
     <ion-nav-bar class="bar-royal nav-title-slide-ios7">
 
-        <div>
-            <ion-nav-back-button ng-click="previous()">
-                {{ prevText }}
-            </ion-nav-back-button>
-        </div>
-
-        <ion-nav-buttons side="right">
-            <button class="button button-clear" ng-click="next()">
-                {{ menuText }}
-                <i class="icon ion-ios7-arrow-next"></i>
-            </button>
+        <ion-nav-buttons side="left">
+            <button class="button button-icon icon">Quit</button>
         </ion-nav-buttons>
+
 
     </ion-nav-bar>
 
-    <ion-content>
+
+    <div class="bar bar-subheader bar-dark">
+            <button class="button button-clear" ng-click="previous()">
+                <i class="icon ion-ios7-arrow-previous"></i>
+                {{ prevText }}
+            </button>
+
+            <button side="right" class="button button-clear" ng-click="next()">
+                {{ menuText }}
+                <i class="icon ion-ios7-arrow-next"></i>
+            </button>
+    </div>
+
+
+    <ion-content class="has-subheader">
 
         <child></child>
 

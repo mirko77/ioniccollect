@@ -9,10 +9,11 @@ angular.module('add-project', [])
         /**
          * Add a project
          *
-         * @param slug
-         * @param name
+         * @param projectSlug
+         * @param projectName
+         * @param projectRef
          */
-        $scope.addProject = function (slug, name) {
+        $scope.addProject = function (projectSlug, projectName, projectRef) {
 
             // attempt to retrieve the jwt token
             DbService.getToken().then(function(res) {
@@ -24,14 +25,13 @@ angular.module('add-project', [])
                     var jwt = res.rows.item(0).jwt;
                 }
 
-                WebService.getProject(slug, jwt).success(function (data) {
+                WebService.getProject(projectSlug, jwt).success(function (data) {
                     $scope.data = data;
                     console.log(data);
 
-                    $scope.DbService.saveProject(slug, name, data.data, data.extraJson).then(function () {
+                    $scope.DbService.saveProject(projectSlug, projectName, projectRef, data.data, data.extraJson).then(function () {
 
-
-                        alert('Project "' + name + '" added.');
+                        alert('Project "' + projectName + '" added.');
 
                         $ionicHistory.nextViewOptions({
                             disableBack: true

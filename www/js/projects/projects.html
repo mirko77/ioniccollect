@@ -19,9 +19,9 @@
 
     <ion-content>
         <ion-list>
-            <ion-item ng-repeat="project in projects" href="#/app/projects/{{project.slug}}">
+            <ion-item ng-repeat="project in projects" href="#/app/projects/{{project.project_ref}}/entries">
                 <div class="text-left">
-                    {{project.title}}
+                    {{project.project_name}}
                 </div>
             </ion-item>
         </ion-list>

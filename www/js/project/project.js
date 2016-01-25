@@ -17,12 +17,12 @@ angular.module('project', [])
             cordova.plugin.pDialog.dismiss();
         };
 
-        $scope.slug = $stateParams.slug;
-        console.log($scope.slug);
+        $scope.projectRef = $stateParams.project_ref;
+
         $scope.project = ProjectModel;
 
         $scope.getProject = function() {
-            DbService.getProject($scope.slug).then(function(res) {
+            DbService.getProject($scope.projectRef).then(function(res) {
 
                 // check if we have one
                 if (res.rows.item(0)) {
@@ -37,8 +37,6 @@ angular.module('project', [])
                     $scope.projectName = $scope.project.getProjectName();
 
                 }
-
-                console.log('hiiiiiiii theeeeerreeee');
                 $scope.hide();
 
             });

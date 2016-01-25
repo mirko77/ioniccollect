@@ -4,8 +4,10 @@
 
     <ion-nav-bar class="bar-royal nav-title-slide-ios7">
 
-        <ion-nav-back-button class="button-clear">
-        </ion-nav-back-button>
+        <ion-nav-buttons side="left">
+            <!-- Toggle left side menu -->
+            <button menu-toggle="left" class="button button-icon icon ion-navicon"></button>
+        </ion-nav-buttons>
 
         <ion-nav-buttons side="right">
             <button class="button button-clear" ng-click="addEntry()">
@@ -15,7 +17,13 @@
 
     </ion-nav-bar>
 
-    <ion-content>
+
+    <div class="bar bar-subheader bar-dark">
+        <button class="button button-clear"><i class="ion-arrow-left-c"></i> Projects</button>
+    </div>
+
+
+    <ion-content class="has-subheader">
         <ion-list>
 
             <ion-item ng-repeat="entry in entries" ng-click="viewEntry(entry)">

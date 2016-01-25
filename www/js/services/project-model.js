@@ -21,6 +21,10 @@ angular.module('project-model', ['ionic'])
         return this.extra_structure.project.details.slug;
     };
 
+    this.getProjectRef = function () {
+        return this.extra_structure.project.details.project_ref;
+    };
+
     this.getForms = function () {
         return (this.json_structure.project.forms) ? this.json_structure.project.forms : {};
     };
@@ -79,6 +83,10 @@ angular.module('project-model', ['ionic'])
     // BRANCHES
     this.getFormBranches = function (formRef) {
         return (this.extra_structure.forms[formRef].branch) ? this.extra_structure.forms[formRef].branch : {};
+    };
+
+    this.formHasBranches = function(formRef) {
+        // TODO
     };
 
     // GROUPS

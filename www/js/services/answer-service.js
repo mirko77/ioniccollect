@@ -2,24 +2,24 @@
  * Answer Service
  */
 angular.module('answer-service', ['ionic'])
-    .service('AnswerService', function ($ionicPlatform, StatusCodes, DbService, AnswerValidate) {
+    .service('AnswerService', function ($ionicPlatform, StatusCodes, DbService, AnswerValidate, EntryService, ProjectModel) {
 
         this.validator = AnswerValidate;
         /**
          * Validate and save answers
          *
+         * @param answer
+         * @param inputDetails
          * @param wasJumped
          * @return boolean
          */
-        this.saveAnswer = function (wasJumped) {
-
-            var answer = $scope.answer.answer;
+        this.saveAnswer = function (answer, inputDetails, wasJumped) {
 
             // Reset validator errors
             this.validator.reset();
 
             // Validate the answer
-            this.validator.validate($scope.inputDetails, answer);
+            this.validator.validate(inputDetails, answer);
 
             // Check whether answer is valid
             if (this.validator.hasErrors()) {
@@ -33,13 +33,13 @@ angular.module('answer-service', ['ionic'])
             }
 
             // Parse the answer for storing in the db
-            answer = $scope.parseAnswerForDb(answer, $scope.type);
+            var parsedAnswer = this.parseAnswerForSaving(answer, inputDetails.type);
 
             // Store the answer
-            DbService.saveAnswer($scope.EntryService.entryUuid, $scope.currentInputRef,
+            EntryService.addAnswer(inputDetails.ref,
                 {
-                    answer: answer,
-                    input_ref: $scope.answer.input_ref,
+                    answer: parsedAnswer,
+                    input_ref: inputDetails.ref,
                     was_jumped: wasJumped
                 }
             );
@@ -50,23 +50,30 @@ angular.module('answer-service', ['ionic'])
         };
 
         /**
-         * Get answer for this question
+         * Get answer for a question
+         *
+         * @param inputDetails
          */
-        this.getAnswer = function () {
+        this.getAnswer = function (inputDetails) {
 
-            //// Check the database for any stored answer for this question
-            DbService.getAnswer($scope.EntryService.entryUuid, $scope.currentInputRef).then(function (res) {
+            var answerObject = EntryService.getAnswer(inputDetails.ref);
 
-                // if we have a stored answer in the db
-                if (res.rows.length > 0) {
+            // If we have an existing answer
+            if (answerObject) {
+                // Parse answer.answer for viewing
+                answerObject.answer = this.parseAnswerForViewing(answerObject.answer, inputDetails.type);
+                return answerObject;
 
-                    var dbAnswer = JSON.parse(res.rows.item(0).answer);
-                    // parse the answer from the db into correct format for reading
-                    $scope.answer.answer = $scope.parseAnswerForVM(dbAnswer.answer, $scope.type);
+            } else {
 
-                }
+                // Return a default answer object
+                return {
+                    answer: '',
+                    was_jumped: false,
+                    input_ref: inputDetails.ref
+                };
 
-            });
+            }
 
         };
 
@@ -76,7 +83,7 @@ angular.module('answer-service', ['ionic'])
          * @param type
          * @returns {*}
          */
-        this.parseAnswerForVM = function (answer, type) {
+        this.parseAnswerForViewing = function (answer, type) {
 
             // Do some cleansing on the answer.answer, relative to its question type
             // switch on the supplied type
@@ -95,13 +102,16 @@ angular.module('answer-service', ['ionic'])
                 case 'group':
                     // loop each group answer and parse
                     var groupAnswers = [];
-                    var groupInputsExtra = $scope.project.getExtraInputs();
+                    var groupInputsExtra = ProjectModel.getExtraInputs();
 
                     for (var i = 0; i < answer.length; i++) {
                         var groupInputDetails = groupInputsExtra[answer[i].input_ref].data;
+                        console.log('test answer: ' + answer[i].answer);
+                        var testanswer = this.parseAnswerForViewing(answer[i].answer, groupInputDetails.type);
+
                         groupAnswers.push(
                             {
-                                answer: $scope.parseAnswerForVM(answer[i].answer, groupInputDetails.type),
+                                answer: testanswer,
                                 input_ref: answer[i].input_ref,
                                 was_jumped: answer[i].was_jumped
                             }
@@ -118,12 +128,12 @@ angular.module('answer-service', ['ionic'])
         };
 
         /**
-         * Parse an answer into a format readable by the database
+         * Parse an answer into a format for saving
          * @param answer
          * @param type
          * @returns {*}
          */
-        this.parseAnswerForDb = function (answer, type) {
+        this.parseAnswerForSaving = function (answer, type) {
 
             // Do some cleansing on the answer for insertion into the db
             // switch on the supplied type
@@ -144,13 +154,13 @@ angular.module('answer-service', ['ionic'])
                 case 'group':
 
                     var groupAnswers = [];
-                    var groupInputsExtra = $scope.project.getExtraInputs();
+                    var groupInputsExtra = ProjectModel.getExtraInputs();
 
                     for (var i = 0; i < answer.length; i++) {
                         var groupInputDetails = groupInputsExtra[answer[i].input_ref].data;
                         groupAnswers.push(
                             {
-                                answer: $scope.parseAnswerForDb(answer[i].answer, groupInputDetails.type),
+                                answer: this.parseAnswerForSaving(answer[i].answer, groupInputDetails.type),
                                 input_ref: answer[i].input_ref,
                                 was_jumped: answer[i].was_jumped
                             }
