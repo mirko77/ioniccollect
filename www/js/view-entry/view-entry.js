@@ -1,11 +1,14 @@
 angular.module('view-entry', [])
 
-    .controller('ViewEntryCtrl', function($scope, $state, $ionicPlatform, $ionicHistory, $stateParams, WebService, DbService) {
+    .controller('ViewEntryCtrl', function($scope, $state, $ionicPlatform, $ionicHistory, $stateParams, WebService, DbService, ProjectModel) {
 
-        $scope.entryUuid = $stateParams.entryUuid;
-        $scope.slug = $stateParams.slug;
+        $scope.entryUuid = $stateParams.entry_uuid;
+        $scope.projectRef = $stateParams.project_ref;
+        $scope.project = ProjectModel;
+        $scope.projectName = $scope.project.getProjectName();
         $scope.DbService = DbService;
         $scope.entry = null;
+        $scope.slug = $scope.project.getSlug();
 
         /**
          * View this entry answers
@@ -13,8 +16,8 @@ angular.module('view-entry', [])
         $scope.viewAnswers = function() {
 
             $scope.DbService.getEntry($scope.entryUuid).then(function(data) {
-                console.log(data.rows.item(0).entry);
-                $scope.entry = JSON.parse(data.rows.item(0).entry).data;
+                $scope.entry = JSON.parse(data.rows.item(0).json_structure).data;
+                console.log($scope.entry);
             });
 
         };

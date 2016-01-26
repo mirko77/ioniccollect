@@ -2,7 +2,7 @@
  * Entry Service
  */
 angular.module('entry-service', ['ionic'])
-    .service('EntryService', function ($ionicPlatform, StatusCodes, DbService) {
+    .service('EntryService', function ($ionicPlatform, StatusCodes, DbService, AnswerValidate, ProjectModel) {
 
         /**
          * Helper method to create a uuid
@@ -21,26 +21,19 @@ angular.module('entry-service', ['ionic'])
         };
 
         this.entryUuid = '';
-        this.project = '';
+        this.project = ProjectModel;
         this.forms = [];
         this.formName = '';
         this.numForms = 0;
         this.currentFormIndex = 0;
         this.numInputsThisForm = 0;
+        this.parentEntryUuid = '';
         this.inputs = {};
         this.answers = {};
         this.currentFormRef = '';
         this.branchEntries = [];
         this.media = [];
-
-        /**
-         * Add project details to the add entry object
-         *
-         * @param project
-         */
-        this.addProject = function (project) {
-            this.project = project;
-        };
+        this.validator = AnswerValidate;
 
         /**
          * Initial function to set up the entry
@@ -49,7 +42,7 @@ angular.module('entry-service', ['ionic'])
 
             // reset answers
             this.answers = {};
-            
+
             // reset uuid
             this.entryUuid = this.uuid();
 
@@ -78,6 +71,63 @@ angular.module('entry-service', ['ionic'])
                     i++;
                 }
             }
+            // add default answers for all questions in this entry
+            this.addDefaultAnswers();
+
+        };
+
+        /**
+         * Add default answers for all questions in this entry
+         */
+        this.addDefaultAnswers = function () {
+            var inputsExtra = this.project.getExtraInputs();
+
+            // now loop round and pre populate the answers for each question
+            for (var i = 0; i < this.inputs.length; i++) {
+
+                var inputDetails = inputsExtra[this.inputs[i]].data;
+
+                switch (inputDetails.type) {
+
+                    case 'group':
+
+                        // add group answers to main group
+                        var group = this.project.getFormGroups(this.currentFormRef);
+
+                        this.answers[inputDetails.ref] = {answer: {}, was_jumped: false, type: inputDetails.type};
+                        for (var j = 0; j < group[inputDetails.ref].length; j++) {
+
+                            var groupInputDetails = inputsExtra[group[inputDetails.ref][j]].data;
+                            switch (groupInputDetails.type) {
+
+                                case 'checkbox':
+                                    this.answers[inputDetails.ref].answer[groupInputDetails.ref] ={
+                                        answer: {},
+                                        was_jumped: false,
+                                        type: groupInputDetails.type
+                                    };
+                                    break;
+                                default:
+                                    this.answers[inputDetails.ref].answer[groupInputDetails.ref] = {
+                                        answer: '',
+                                        was_jumped: false,
+                                        type: groupInputDetails.type
+                                    };
+                            }
+                        }
+                        break;
+
+                    case 'checkbox':
+                        this.answers[inputDetails.ref] = {answer: {}, was_jumped: false, type: inputDetails.type};
+                        break;
+
+                    default:
+                        // add any other type as normal
+                        this.answers[inputDetails.ref] = {answer: '', was_jumped: false, type: inputDetails.type};
+
+                }
+
+            }
         };
 
         /**
@@ -95,7 +145,7 @@ angular.module('entry-service', ['ionic'])
 
             var entryJson = {
                 data: {
-                    type: 'entry',
+                    type: entryType,
                     id: uuid,
                     entry_uuid: uuid,
                     attributes: {
@@ -126,7 +176,7 @@ angular.module('entry-service', ['ionic'])
          *
          * @param projectRef
          */
-        this.saveEntry = function(projectRef) {
+        this.saveEntry = function (projectRef) {
 
             var self = this;
 
@@ -153,13 +203,36 @@ angular.module('entry-service', ['ionic'])
         };
 
         /**
-         * Add answer to 'answers' object
+         * Validate and add answer to 'answers' object
          *
-         * @param inputRef
          * @param answer
+         * @param inputDetails
          */
-        this.addAnswer = function(inputRef, answer) {
-            this.answers[inputRef] = answer;
+        this.addAnswer = function (answer, inputDetails) {
+
+            // Reset validator errors
+            this.validator.reset();
+
+            // Validate the answer
+            this.validator.validate(inputDetails, answer.answer);
+
+            // Check whether answer is valid
+            if (this.validator.hasErrors()) {
+                var errors = this.validator.getErrors();
+                for (var error in errors) {
+                    if (errors.hasOwnProperty(error)) {
+                        alert('Error: ' + StatusCodes.getMessage(errors[error]));
+                    }
+                }
+                return false;
+            }
+            console.log(answer);
+            // store the answer
+            this.answers[inputDetails.ref] = answer;
+
+            // success
+            return true;
+
         };
 
         /**
@@ -168,9 +241,7 @@ angular.module('entry-service', ['ionic'])
          * @param inputRef
          * @returns {*}
          */
-        this.getAnswer = function(inputRef) {
-            console.log('entry get answer: ');
-            console.log(this.answers);
+        this.getAnswer = function (inputRef) {
             return this.answers[inputRef];
         };
 

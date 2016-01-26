@@ -1,8 +1,8 @@
 
 
-angular.module('entries', [])
+angular.module('project', [])
 
-    .controller('EntriesCtrl', function($ionicPlatform, $scope, $stateParams, $state, ProjectModel, DbService, EntryService) {
+    .controller('ProjectCtrl', function($ionicPlatform, $scope, $stateParams, $state, ProjectModel, DbService, EntryService) {
 
         $scope.show = function() {
             cordova.plugin.pDialog.init({
@@ -10,7 +10,7 @@ angular.module('entries', [])
                 progressStyle : 'SPINNER',
                 cancelable : false,
                 title : 'Please Wait...',
-                message : 'Loading Entries...'
+                message : 'Loading Project...'
             });
         };
 
@@ -39,7 +39,7 @@ angular.module('entries', [])
                     $scope.json_structure = res.rows.item(0).json_structure
                     $scope.json_extra = res.rows.item(0).json_extra;
                     $scope.project.initialise($scope.json_structure, $scope.json_extra);
-                    EntryService.addProject($scope.project);
+                    //EntryService.addProject($scope.project);
                     $scope.projectName = $scope.project.getProjectName();
 
                     console.log($scope.project);
@@ -61,7 +61,7 @@ angular.module('entries', [])
             $scope.DbService.getEntriesForProject($scope.projectRef).then(function(res) {
 
                 for (var i = 0; i < res.rows.length; i++) {
-                    $scope.entries.push({title: res.rows.item(i).uuid});
+                    $scope.entries.push({title: res.rows.item(i).entry_uuid, entry_uuid: res.rows.item(i).entry_uuid});
                 }
 
                 $scope.$apply();
@@ -76,8 +76,7 @@ angular.module('entries', [])
          */
         $scope.viewEntry = function(entry) {
 
-            console.log(entry);
-            $state.go('app.view-entry', {project_ref: $scope.projectRef, entryUuid: entry.title});
+            $state.go('app.view-entry', {project_ref: $scope.projectRef, entry_uuid: entry.entry_uuid});
 
         };
 
@@ -96,8 +95,8 @@ angular.module('entries', [])
         /**
          * Go to Projects page
          */
-        $scope.projectsPage = function () {
-            location.href = '#/app/projects';
+        $scope.projectsPage = function() {
+            $state.go('app.projects');
         };
 
         $ionicPlatform.ready(function () {

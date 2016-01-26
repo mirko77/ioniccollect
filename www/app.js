@@ -7,9 +7,9 @@
 
 var db = null;
 
-angular.module('starter', ['ionic', 'ngCordova', 'login', 'projects', 'entries', 'project',
+angular.module('starter', ['ionic', 'ngCordova', 'login', 'projects', 'project',
                             'question', 'add-project', 'view-entry', 'project-model', 'db-service',
-                            'web-service', 'entry-service', 'answer-service'])
+                            'web-service', 'entry-service'])
 
     .run(function ($ionicPlatform, $cordovaSQLite) {
         $ionicPlatform.ready(function () {
@@ -83,31 +83,14 @@ angular.module('starter', ['ionic', 'ngCordova', 'login', 'projects', 'entries',
             })
 
             .state('app.project', {
-                url: '/projects/:slug',
-                params: {
-                    'slug': ''
-                },
-                views: {
-                    'menuContent': {
-                        templateUrl: 'js/project/project.html',
-                        controller: 'ProjectCtrl'
-                    },
-                    'rightMenuContent': {
-                        templateUrl: 'js/project/project.html',
-                        controller: 'ProjectCtrl'
-                    }
-                }
-            })
-
-            .state('app.entries', {
-                url: '/projects/:project_ref/entries',
+                //url: '/projects/:project_ref',
                 params: {
                     'project_ref': ''
                 },
                 views: {
                     'menuContent': {
-                        templateUrl: 'js/entries/entries.html',
-                        controller: 'EntriesCtrl'
+                        templateUrl: 'js/project/project.html',
+                        controller: 'ProjectCtrl'
                     }
                 }
             })
@@ -115,8 +98,8 @@ angular.module('starter', ['ionic', 'ngCordova', 'login', 'projects', 'entries',
             .state('app.view-entry', {
                 //url: '/projects/:slug',
                 params: {
-                    slug: '',
-                    entryUuid: ''
+                    project_ref: '',
+                    entry_uuid: ''
                 },
                 views: {
                     'menuContent': {

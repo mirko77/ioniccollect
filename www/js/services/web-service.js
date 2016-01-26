@@ -3,10 +3,10 @@
  */
 angular.module('web-service', ['ionic'])
 
-    .service('WebService', function ($http, DbService) {
+    .service('WebService', function ($http) {
 
-        //var webservice_url = "http://192.168.43.18/Sites/ec5/code/public/api/json";
-        var webservice_url = "http://vps140384.ovh.net/five/api/json";
+        var webservice_url = "http://192.168.43.18/Sites/ec5/code/public/api/json";
+        //var webservice_url = "http://vps140384.ovh.net/five/api/json";
 
         /**
          * Get a project (posting jwt token, if available)
@@ -49,7 +49,7 @@ angular.module('web-service', ['ionic'])
          * @returns {*}
          */
         this.uploadEntry = function (slug, data) {
-
+            console.log(data);
             return $http({
                 method: 'POST',
                 url: webservice_url + '/upload/' + slug,

@@ -26,6 +26,11 @@ angular.module('answer-validate', ['ionic'])
 
                 case 'group':
 
+                    // do checks on all the answers within the group
+                    //for () {
+                    //    this.doAnswerChecks(input_details.type, answer, input_details.possible_answers, input_details.min, input_details.max, input_details.regex);
+                    //}
+                    
                     break;
                 default:
                     // do checks on this answer and the input type

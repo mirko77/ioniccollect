@@ -22,7 +22,7 @@ angular.module('project-model', ['ionic'])
     };
 
     this.getProjectRef = function () {
-        return this.extra_structure.project.details.project_ref;
+        return this.extra_structure.project.details.ref;
     };
 
     this.getForms = function () {
@@ -84,6 +84,11 @@ angular.module('project-model', ['ionic'])
     this.getFormBranches = function (formRef) {
         return (this.extra_structure.forms[formRef].branch) ? this.extra_structure.forms[formRef].branch : {};
     };
+
+    this.getBranches = function (formRef, inputRef) {
+        return (this.extra_structure.forms[formRef].branch[inputRef]) ? this.extra_structure.forms[formRef].branch[inputRef] : {};
+    };
+
 
     this.formHasBranches = function(formRef) {
         // TODO

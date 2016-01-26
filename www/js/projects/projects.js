@@ -32,6 +32,15 @@ angular.module('projects', [])
 
     };
 
+    /**
+     * Got to a project page
+     *
+     * @param projectRef
+     */
+    $scope.goToProject = function(projectRef) {
+        $state.go('app.project', {project_ref: projectRef});
+    };
+
     $ionicPlatform.ready(function () {
 
         $scope.getProjects();

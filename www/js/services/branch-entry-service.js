@@ -1,8 +1,8 @@
 /**
- * Entry Service
+ * Branch Entry Service
  */
-angular.module('entry-service', ['ionic'])
-    .service('EntryService', function ($ionicPlatform, StatusCodes, DbService, AnswerValidate) {
+angular.module('branch-entry-service', ['ionic'])
+    .service('BranchEntryService', function ($ionicPlatform, StatusCodes, DbService, AnswerValidate) {
 
         /**
          * Helper method to create a uuid
@@ -22,15 +22,13 @@ angular.module('entry-service', ['ionic'])
 
         this.entryUuid = '';
         this.project = '';
-        this.forms = [];
         this.formName = '';
-        this.numForms = 0;
-        this.currentFormIndex = 0;
         this.numInputsThisForm = 0;
+        this.ownerInputRef = '';
+        this.ownerEntryUuid = '';
         this.inputs = {};
-        this.answers = {};
+        this.branchAnswers = {};
         this.currentFormRef = '';
-        this.branchEntries = [];
         this.media = [];
         this.validator = AnswerValidate;
 
@@ -48,75 +46,59 @@ angular.module('entry-service', ['ionic'])
          */
         this.setUp = function () {
 
-            // reset answers
-            this.answers = {};
+            // reset branchAnswers
+            this.branchAnswers = {};
 
             // reset uuid
             this.entryUuid = this.uuid();
 
-            // get forms
-            var forms = this.project.getExtraForms();
-            this.numForms = forms.length;
-            var inputs;
-
-            var i = 0;
-            // loop forms to get first
-            for (var form in forms) {
-
-                if (forms.hasOwnProperty(form)) {
-                    this.forms[i] = {ref: form, form: forms[form]};
-
-                    // set some class variables so we know our current form/input
-                    // if we don't have a form, we'll use the first form
-                    if (i === 0 && !this.currentFormRef) {
-                        this.formName = forms[form].details.name;
-                        this.currentFormRef = form;
-                        this.currentFormIndex = form;
-                        this.inputs = this.project.getFormInputs(form);
-                        this.numInputsThisForm = this.inputs.length;
-                    }
-
-                    i++;
-                }
-            }
+            this.branchInputs = this.project.getBranches(this.currentFormRef, this.ownerInputRef);
 
             var inputsExtra = this.project.getExtraInputs();
 
-            // now loop round and prepopulate the answers for each question
+            // now loop round and prepopulate the branchAnswers for each question
             for (var i = 0; i < this.inputs.length; i++) {
 
                 var inputDetails = inputsExtra[this.inputs[i]].data;
 
-                switch(inputDetails.type) {
+                switch (inputDetails.type) {
 
                     case 'group':
 
-                        // add group answers to main group
+                        // add group branchAnswers to main group
                         var group = this.project.getFormGroups(this.currentFormRef);
 
-                        this.answers[inputDetails.ref] = {answer: [], input_ref: inputDetails.ref, was_jumped: false};
+                        this.branchAnswers[inputDetails.ref] = {answer: [], input_ref: inputDetails.ref, was_jumped: false};
                         for (var j = 0; j < group[inputDetails.ref].length; j++) {
 
                             var groupInputDetails = inputsExtra[group[inputDetails.ref][j]].data;
-                            switch(groupInputDetails.type) {
+                            switch (groupInputDetails.type) {
 
                                 case 'checkbox':
-                                    this.answers[inputDetails.ref].answer.push({answer: {}, input_ref: groupInputDetails.ref, was_jumped: false});
+                                    this.branchAnswers[inputDetails.ref].answer.push({
+                                        answer: {},
+                                        input_ref: groupInputDetails.ref,
+                                        was_jumped: false
+                                    });
                                     break;
                                 default:
-                                    this.answers[inputDetails.ref].answer.push({answer: '', input_ref: groupInputDetails.ref, was_jumped: false});
+                                    this.branchAnswers[inputDetails.ref].answer.push({
+                                        answer: '',
+                                        input_ref: groupInputDetails.ref,
+                                        was_jumped: false
+                                    });
                             }
                         }
 
                         break;
 
                     case 'checkbox':
-                        this.answers[inputDetails.ref] = {answer: {}, input_ref: inputDetails.ref, was_jumped: false};
+                        this.branchAnswers[inputDetails.ref] = {answer: {}, input_ref: inputDetails.ref, was_jumped: false};
                         break;
 
                     default:
                         // add any other type as normal
-                        this.answers[inputDetails.ref] = {answer: '', input_ref: inputDetails.ref, was_jumped: false};
+                        this.branchAnswers[inputDetails.ref] = {answer: '', input_ref: inputDetails.ref, was_jumped: false};
 
                 }
 
@@ -127,19 +109,24 @@ angular.module('entry-service', ['ionic'])
         /**
          * Make the json Entry object
          *
-         * @param answers
+         * @param branchAnswers
          * @returns {{data: {type: string, id: (string|*), entry_uuid: (string|*), attributes: {form: {ref: (string|*), type: string}}, relationships: {parent: {}, branch: {}}, created_at: string, device_id: string, jwt: null}}}
          */
-        this.makeJsonEntry = function (answers) {
+        this.makeJsonEntry = function (branchAnswers) {
 
-            var entryType = 'entry';
+            var entryType = 'branch-entry';
             var uuid = this.entryUuid;
-            var branch = {};
+            var branch = {
+                data : {
+                    input_ref: this.ownerInputRef,
+                    entry_uuid: this.ownerEntryUuid
+                }
+            };
             var parent = {};
 
             var entryJson = {
                 data: {
-                    type: 'entry',
+                    type: entryType,
                     id: uuid,
                     entry_uuid: uuid,
                     attributes: {
@@ -159,7 +146,7 @@ angular.module('entry-service', ['ionic'])
 
             };
 
-            entryJson.data[entryType] = answers;
+            entryJson.data[entryType] = branchAnswers;
 
             return entryJson;
 
@@ -170,14 +157,14 @@ angular.module('entry-service', ['ionic'])
          *
          * @param projectRef
          */
-        this.saveEntry = function(projectRef) {
+        this.saveEntry = function (projectRef) {
 
             var self = this;
 
             return new Promise(function (fulfill, reject) {
 
-                // Make entry json from the answers
-                var entry = self.makeJsonEntry(self.answers);
+                // Make entry json from the branchAnswers
+                var entry = self.makeJsonEntry(self.branchAnswers);
                 // Save the entry in the database
                 DbService.saveEntry(projectRef, self.entryUuid, entry).then(function (res) {
 
@@ -197,12 +184,12 @@ angular.module('entry-service', ['ionic'])
         };
 
         /**
-         * Validate and add answer to 'answers' object
+         * Validate and add answer to 'branchAnswers' object
          *
          * @param answer
          * @param inputDetails
          */
-        this.addAnswer = function(answer, inputDetails) {
+        this.addAnswer = function (answer, inputDetails) {
 
             // Reset validator errors
             this.validator.reset();
@@ -222,7 +209,7 @@ angular.module('entry-service', ['ionic'])
             }
 
             // store the answer
-            this.answers[inputDetails.ref] = answer;
+            this.branchAnswers[inputDetails.ref] = answer;
 
             // success
             return true;
@@ -235,8 +222,8 @@ angular.module('entry-service', ['ionic'])
          * @param inputRef
          * @returns {*}
          */
-        this.getAnswer = function(inputRef) {
-            return this.answers[inputRef];
+        this.getAnswer = function (inputRef) {
+            return this.branchAnswers[inputRef];
         };
 
     });

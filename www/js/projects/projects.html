@@ -10,7 +10,6 @@
         <ion-nav-buttons side="right">
             <button class="button button-clear" ng-click="addProject()">
                 + Add Project
-                <i class="icon ion-ios7-arrow-next"></i>
             </button>
         </ion-nav-buttons>
 
@@ -19,7 +18,7 @@
 
     <ion-content>
         <ion-list>
-            <ion-item ng-repeat="project in projects" href="#/app/projects/{{project.project_ref}}/entries">
+            <ion-item ng-repeat="project in projects" ng-click="goToProject(project.project_ref)">
                 <div class="text-left">
                     {{project.project_name}}
                 </div>

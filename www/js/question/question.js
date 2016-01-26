@@ -1,12 +1,12 @@
 angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-validate'])
 
-    .controller('QuestionCtrl', function ($ionicPlatform, $scope, $stateParams, $state, $cordovaSQLite, $ionicHistory, WebService, ProjectModel, EntryService, DbService, StatusCodes, AnswerValidate, AnswerService) {
+    .controller('QuestionCtrl', function ($ionicPlatform, $scope, $stateParams, $state, $cordovaSQLite, $ionicHistory, WebService, ProjectModel, EntryService, DbService, StatusCodes) {
 
         $scope.project = ProjectModel;
         $scope.EntryService = EntryService;
         $scope.formName = $scope.EntryService.formName;
         $scope.projectRef = $scope.project.getProjectRef();
-        $scope.validator = AnswerValidate;
+        console.log($scope.projectRef);
 
         // retrieve input refs array
         var inputs = $scope.project.getFormInputs($scope.EntryService.currentFormRef);
@@ -14,7 +14,6 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
         // retrieve current input ref from previous view
         $scope.currentInputRef = $stateParams.inputRef;
         $scope.currentInputIndex = $stateParams.inputIndex;
-
 
         // if we haven't been passed a current input ref, set
         if ($scope.currentInputRef == '') {
@@ -61,13 +60,11 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
         // retrieve the type of input
         $scope.type = $scope.inputDetails.type;
 
+        // retrieve any jumps for this question
         $scope.jumps = $scope.inputDetails.jumps;
 
-        $scope.answer = {
-            answer: '',
-            was_jumped: false,
-            input_ref: $scope.currentInputRef
-        };
+        // retrieve stored answer for this question
+        $scope.answer = EntryService.getAnswer($scope.currentInputRef);
 
         /**
          * Validate and save answers
@@ -84,7 +81,7 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
             }
 
             // validate and save answer
-            var passed = AnswerService.saveAnswer($scope.answer.answer, $scope.inputDetails, wasJumped);
+            var passed = EntryService.addAnswer($scope.answer, $scope.inputDetails);
 
             // if answer passed validation and was successfully stored
             if (passed) {
@@ -103,12 +100,13 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
 
                 } else {
                     // SAVE ENTRY
-                    $scope.EntryService.saveEntry($scope.projectRef).then(function() {
-                        // once the entry has inserted, navigate to entry screen, disabling back view
+                    $scope.EntryService.saveEntry($scope.projectRef).then(function () {
+                        // once the entry has inserted, navigate to project screen, disabling back view
                         $ionicHistory.nextViewOptions({
                             disableBack: true
                         });
-                        $state.go('app.entries', {project_ref: $scope.projectRef});
+                        // send to entries page relative to this form/parent uuid?
+                        $state.go('app.project', {project_ref: $scope.projectRef});//, form_ref: $scope.currentFormRef});
                     });
 
                 }
@@ -123,13 +121,24 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
 
             var back = true;
 
-            // if we are at the start of the entry, alert user
+            // if we are at the start of the entry, alert user to quit
             if ($scope.currentInputIndex === 0) {
                 back = confirm(StatusCodes.getMessage('ec5_78'));
             }
 
             if (back) {
                 $ionicHistory.goBack()
+            }
+
+        };
+
+        /**
+         * Quit this whole entry
+         */
+        $scope.quit = function () {
+
+            if (confirm(StatusCodes.getMessage('ec5_78'))) {
+                $state.go('app.project', {project_ref: $scope.projectRef});
             }
 
         };
@@ -205,18 +214,10 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
 
             }, function (err) {
 
-                // Uh-roh, something bad happened
+                // Uh-oh, something bad happened
 
             }, cameraOptions);
         };
-
-
-        $ionicPlatform.ready(function () {
-            // Check if we already have an answer stored for this question
-            $scope.answer = AnswerService.getAnswer($scope.inputDetails);
-            console.log($scope.answer);
-
-        });
 
     })
 
@@ -306,20 +307,10 @@ angular.module('question', ['ionic', 'ngCordova', 'status-codes', 'answer-valida
 
                     var group = scope.project.getGroupInputs(scope.EntryService.currentFormRef, scope.inputDetails.ref);
 
-                    scope.answer.answer = [];
-
                     for (var i = 0; i < group.length; i++) {
 
                         var groupInputDetails = scope.inputsExtra[group[i].ref].data;
-
-                        // push group input answer into main group answer array
-                        scope.answer.answer.push({
-                            input_ref: groupInputDetails.ref,
-                            was_jumped: false,
-                            answer: ''
-                        });
-
-                        template += getTemplate(scope, groupInputDetails.type, groupInputDetails.question, 'answer.answer[' + i + '].answer', groupInputDetails.possible_answers);
+                        template += getTemplate(scope, groupInputDetails.type, groupInputDetails.question, 'answer.answer[\'' + group[i].ref + '\'].answer', groupInputDetails.possible_answers);
 
                     }
 
